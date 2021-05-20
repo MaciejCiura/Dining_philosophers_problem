@@ -37,8 +37,6 @@ int main()
 		std::cin >> cin_char;
 	
 	running = false;
-	for(const auto& p : philosophers)
-	
 	
 	philosophers.clear();
 }
