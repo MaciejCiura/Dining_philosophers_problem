@@ -1,25 +1,29 @@
 #include <iostream>
 #include <vector>
+#include <ncurses.h>
 #include "Philosopher.h"
 
 int main()
 {
+	initscr();
+
 	unsigned int n = 0, sleep_time = 0, eat_time = 0;
 	std::atomic<bool> running = true;
 	
-	std::cout << "Number of philosophers:" << std::endl;
-	std::cin >> n;
+	printw("Number of philosophers: ");
+	refresh();
+	scanw("%u", &n);
 	
-	std::cout << "Sleep time:" << std::endl;
-	std::cin >> sleep_time;
+	printw("Sleep time: ");
+	refresh();
+	scanw("%u", &sleep_time);
 	
-	std::cout << "Eat time:" << std::endl;
-	std::cin >> eat_time;
+	printw("Eat time: ");
+	refresh();
+	scanw("%u", &eat_time);
 	
-	std::cout << "\033c";
-	std::cout << "To exit type 'q'." << std::endl;
-	std::this_thread::sleep_for(std::chrono::seconds(3));
-	std::cout << "\033c";
+	erase();
+	refresh();
 	
 	Dining_time time(sleep_time, eat_time);
 	
@@ -27,16 +31,32 @@ int main()
 	
 	std::vector<std::unique_ptr<Philosopher>> philosophers;
 	philosophers.reserve(n);
-
-	for(int i=0; i<n-1; i++)
-		philosophers.push_back(std::make_unique<Philosopher>(i, forks[i], forks[i+1], std::ref(running), time));
-	philosophers.push_back(std::make_unique<Philosopher>(n-1, forks[0], forks[n-1], std::ref(running), time)); // <--- protection against deadlock
-
-	char cin_char = 'a';
-	while(cin_char != 'q')
-		std::cin >> cin_char;
 	
-	running = false;
+	for (int i = 0; i < n - 1; i++)
+		philosophers.push_back(std::make_unique<Philosopher>(forks[i], forks[i + 1], std::ref(running), time));
+	philosophers.push_back(std::make_unique<Philosopher>(forks[0], forks[n - 1], std::ref(running), time)); // <--- protection against deadlock
 	
+	std::thread scanner([&running]() {
+		while (running)
+			if (getch() == 'q')
+				running = false;
+	});
+	
+	while (running)
+	{
+		erase();
+		refresh();
+		
+		printw("| Id  \t| State \t| Meals |\n");
+		printw("_________________________________\n");
+		for (const auto &p : philosophers)
+		{
+			printw("| %d\t| %s\t| %d\t|\n", p->get_id(), p->get_state().c_str(), p->get_meals());
+			refresh();
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	}
+	scanner.join();
 	philosophers.clear();
+	endwin();
 }
